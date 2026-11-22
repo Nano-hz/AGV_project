@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "name": "two_passing_bay",
+  "map": {
+    "schema_version": 1, "name": "narrow_aisle_with_passing_bay",
+    "grid": ["###########", "##U###.#U##", "#P.......P#", "##D#####D##", "###########"]
+  },
+  "parameters": {"max_steps": 28},
+  "vehicles": [{"id": "AGV-01", "start": [1, 2]}, {"id": "AGV-02", "start": [9, 2]}],
+  "tasks": [
+    {"id": "T001", "vehicle_id": "AGV-01", "release_time": 0, "pickup": [2, 1], "delivery": [8, 3]},
+    {"id": "T002", "vehicle_id": "AGV-02", "release_time": 0, "pickup": [8, 1], "delivery": [2, 3]}
+  ]
+}

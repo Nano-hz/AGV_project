@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "name": "two_retry",
+  "map": {
+    "schema_version": 1, "name": "departure_clears_passage",
+    "grid": ["##########", "#P.P.U..D#", "###U....D#", "##########"]
+  },
+  "parameters": {"max_steps": 24},
+  "vehicles": [{"id": "AGV-01", "start": [1, 1]}, {"id": "AGV-02", "start": [3, 1]}],
+  "tasks": [
+    {"id": "T001", "vehicle_id": "AGV-01", "release_time": 0, "pickup": [5, 1], "delivery": [8, 1]},
+    {"id": "T002", "vehicle_id": "AGV-02", "release_time": 0, "pickup": [3, 2], "delivery": [8, 2]}
+  ]
+}

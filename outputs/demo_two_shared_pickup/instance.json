@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "name": "two_shared_pickup",
+  "seed": 0,
+  "map": {
+    "schema_version": 1,
+    "name": "shared_pickup",
+    "grid": [
+      "#########",
+      "#...D...#",
+      "#P..U..P#",
+      "#...D...#",
+      "#########"
+    ]
+  },
+  "parameters": {
+    "pickup_steps": 1,
+    "dropoff_steps": 1,
+    "max_steps": 24
+  },
+  "vehicles": [
+    {
+      "id": "AGV-01",
+      "start": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "AGV-02",
+      "start": [
+        7,
+        2
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T001",
+      "release_time": 0,
+      "pickup": [
+        4,
+        2
+      ],
+      "delivery": [
+        4,
+        1
+      ],
+      "vehicle_id": "AGV-01"
+    },
+    {
+      "id": "T002",
+      "release_time": 0,
+      "pickup": [
+        4,
+        2
+      ],
+      "delivery": [
+        4,
+        3
+      ],
+      "vehicle_id": "AGV-02"
+    }
+  ]
+}

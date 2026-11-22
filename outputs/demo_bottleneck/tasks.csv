@@ -1,0 +1,2 @@
+﻿task_id,release_time,pickup_x,pickup_y,delivery_x,delivery_y,vehicle_id,assigned_at,pickup_started_at,picked_at,dropoff_started_at,completed_at,flow_time,status
+T001,0,7,4,18,16,AGV-01,0,9,10,33,34,34,completed

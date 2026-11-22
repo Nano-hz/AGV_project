@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "name": "two_crossing",
+  "map": {
+    "schema_version": 1, "name": "crossing",
+    "grid": ["#######", "###P###", "###.###", "#P..UD#", "###U###", "###D###", "#######"]
+  },
+  "parameters": {"max_steps": 24},
+  "vehicles": [{"id": "AGV-01", "start": [1, 3]}, {"id": "AGV-02", "start": [3, 1]}],
+  "tasks": [
+    {"id": "T001", "vehicle_id": "AGV-01", "release_time": 0, "pickup": [4, 3], "delivery": [5, 3]},
+    {"id": "T002", "vehicle_id": "AGV-02", "release_time": 0, "pickup": [3, 4], "delivery": [3, 5]}
+  ]
+}

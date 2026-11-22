@@ -1,0 +1,9 @@
+﻿time,event,vehicle_id,task_id,x,y
+0,task_released,AGV-01,T001,1,3
+0,task_assigned,AGV-01,T001,1,3
+9,arrived_pickup,AGV-01,T001,7,4
+9,pickup_started,AGV-01,T001,7,4
+10,pickup_completed,AGV-01,T001,7,4
+33,arrived_dropoff,AGV-01,T001,18,16
+33,dropoff_started,AGV-01,T001,18,16
+34,task_completed,AGV-01,T001,18,16

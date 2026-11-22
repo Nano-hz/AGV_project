@@ -1,0 +1,57 @@
+{
+  "checked_at": "2026-11-19T20:11:24.481320+08:00",
+  "unit_tests": {
+    "command": "python -m unittest discover -s tests -v",
+    "passed": 16,
+    "failed": 0
+  },
+  "pip_check": "passed",
+  "stdlib_only_run": "passed (-S, makespan 32)",
+  "timeout_cli": "passed (exit 2, partial data preserved)",
+  "log_only_replay": "passed (6 input/log/metric files byte-identical)",
+  "setup_powershell_syntax": "passed",
+  "demos": [
+    {
+      "name": "demo_bottleneck",
+      "success": true,
+      "distance": 32,
+      "service_steps": 2,
+      "makespan": 34,
+      "trace_rows": 35,
+      "gif_frames": 35,
+      "png_size": [
+        1664,
+        1376
+      ],
+      "source_and_input_hashes_match": true
+    },
+    {
+      "name": "demo_narrow",
+      "success": true,
+      "distance": 32,
+      "service_steps": 2,
+      "makespan": 34,
+      "trace_rows": 35,
+      "gif_frames": 35,
+      "png_size": [
+        1664,
+        1376
+      ],
+      "source_and_input_hashes_match": true
+    },
+    {
+      "name": "demo_wide",
+      "success": true,
+      "distance": 30,
+      "service_steps": 2,
+      "makespan": 32,
+      "trace_rows": 33,
+      "gif_frames": 33,
+      "png_size": [
+        1664,
+        1376
+      ],
+      "source_and_input_hashes_match": true
+    }
+  ]
+}

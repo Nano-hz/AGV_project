@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "stage": 1,
+  "method": "single_agv_static_astar",
+  "instance": "single_wide",
+  "map": "wide",
+  "seed": 0,
+  "vehicle_count": 1,
+  "task_count": 1,
+  "completed_tasks": 1,
+  "success": true,
+  "failure_reason": null,
+  "completion_rate": 1.0,
+  "simulation_steps": 32,
+  "mean_flow_time": 32,
+  "makespan": 32,
+  "total_distance": 30,
+  "total_wait_steps": 0,
+  "total_service_steps": 2,
+  "conflict_count": 0,
+  "conflict_check_scope": "single_vehicle_only",
+  "runtime_seconds": 0.0007933000001685286
+}

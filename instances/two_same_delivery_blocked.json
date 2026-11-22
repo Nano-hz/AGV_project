@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "name": "two_same_delivery_blocked",
+  "map": {
+    "schema_version": 1, "name": "one_delivery_cell",
+    "grid": ["#########", "#...D...#", "#P..U..P#", "#.......#", "#########"]
+  },
+  "parameters": {"max_steps": 12},
+  "vehicles": [{"id": "AGV-01", "start": [1, 2]}, {"id": "AGV-02", "start": [7, 2]}],
+  "tasks": [
+    {"id": "T001", "vehicle_id": "AGV-01", "release_time": 0, "pickup": [4, 2], "delivery": [4, 1]},
+    {"id": "T002", "vehicle_id": "AGV-02", "release_time": 0, "pickup": [4, 2], "delivery": [4, 1]}
+  ]
+}

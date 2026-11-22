@@ -1,0 +1,26 @@
+{
+  "created_at_utc": "2026-11-22T12:29:48.928177+00:00",
+  "simulator_version": "0.2.0",
+  "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:37:03) [MSC v.1929 64 bit (AMD64)]",
+  "executable": "C:\\Users\\lenovo\\OneDrive\\Desktop\\人工智能大作业\\project\\.venv\\Scripts\\python.exe",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "packages": {
+    "matplotlib": "3.10.0",
+    "numpy": "2.1.3",
+    "pillow": "11.1.0"
+  },
+  "source_sha256": {
+    "__init__.py": "8e469e27c0643fed04d635247b756181236d82ab022a5d537d4636d9cef8c891",
+    "__main__.py": "3123f08aade4374b09616e7f90cf6194d53f82183d66fe31900152c5b438765b",
+    "collisions.py": "cec9b5b80072a029c1cff33b6a4f90b8cd431843da10e9d3e5fc6a6e25f58de8",
+    "models.py": "eeff360b2d1a8ab317e009731caf82cb3a7e379cfe8282ae3e09209a24ff04a8",
+    "output.py": "65e5e94c200fd3964551e81604d25f125a693e288ffa16f5e10c0ffd40a23543",
+    "planner.py": "77fe74e96d63a157025d3e199c00d54427fc6ddb069ab13cd1a7e03b7a4481eb",
+    "simulator.py": "18b5084f840d572d678e57673cc0a019fd0dd2a2475dca661d494115653fdbee",
+    "space_time.py": "bbbe1282fedf9d1c371d73aa9b319693705a8e59ed8e36f74733f756f6eade85",
+    "visualize.py": "382f29af0221a94c9ec32d6502270911c3e34793f74323fa5436431370e0d7cb"
+  },
+  "instance_sha256": "7a8ec8672f81467f454913391c66b12abaf04f1c9b535e9f90a408c5d25fc96d",
+  "time_unit": "abstract_tick",
+  "distance_unit": "grid_cell"
+}
