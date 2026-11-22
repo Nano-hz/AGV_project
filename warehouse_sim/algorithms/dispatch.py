@@ -1,4 +1,8 @@
-"""Select a task and vehicle using B0, B1, or P."""
+"""用 B0、B1 或 P 选择待办任务和空闲车辆。
+
+B0 优先队首任务，B1 比较各组合的静态预计完工时刻，P 根据预约试算可行路线。
+模块返回派单选择和评分，由仿真层更新任务队列并提交路线。
+"""
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -10,6 +14,8 @@ from .space_time import ReservationTable, Step, plan_task
 
 @dataclass
 class Candidate:
+    """一个车任务组合的评分、试算路线和不可行原因。"""
+
     task: TaskSpec
     vehicle_id: str
     static_finish: int
@@ -18,6 +24,7 @@ class Candidate:
     unavailable_reason: str | None = None
 
     def log(self):
+        """提取派单日志所需的字段。"""
         return {
             "task_id": self.task.id, "vehicle_id": self.vehicle_id,
             "static_finish": self.static_finish, "estimated_finish": self.estimated_finish,
@@ -26,12 +33,15 @@ class Candidate:
 
 
 class CompletionScorer:
+    """缓存静态距离表，并用它为 B1 和 P 计算候选完工时刻。"""
+
     def __init__(self, scenario: Scenario):
         self.scenario = scenario
         targets = {tuple(cell) for task in scenario.tasks for cell in (task.pickup, task.delivery)}
         self.distances = {cell: distances_to(scenario.grid, cell) for cell in targets}
 
     def candidates(self, tick, pending, positions, reservations):
+        """枚举每个待办任务与每辆空闲车的组合，并计算该策略下的分数。"""
         scenario = self.scenario
         for task in pending:
             pickup, delivery = tuple(task.pickup), tuple(task.delivery)
@@ -41,6 +51,7 @@ class CompletionScorer:
                 if scenario.dispatch_policy == "B1":
                     yield Candidate(task, vehicle_id, static_finish, static_finish)
                 else:
+                    # P 在评分时试算完整路线，因此会把等待和绕行计入完成时刻。
                     steps, reason = plan_task(scenario, task, start, tick, reservations.others(vehicle_id))
                     finish = tick + len(steps) if steps is not None else None
                     yield Candidate(task, vehicle_id, static_finish, finish, steps, reason)
@@ -48,6 +59,8 @@ class CompletionScorer:
 
 @dataclass
 class DispatchChoice:
+    """交给仿真层的派单选择，P 同时携带中选的路线。"""
+
     task: TaskSpec
     vehicle_id: str
     pickup_distances: dict[str, int]
@@ -57,7 +70,7 @@ class DispatchChoice:
 
 
 class Dispatcher:
-    """Evaluate candidates without assigning tasks or changing the reservations."""
+    """只根据队列、空闲车位置和当前预约生成派单选择。"""
 
     def __init__(self, scenario: Scenario):
         self.scenario = scenario
@@ -70,7 +83,9 @@ class Dispatcher:
         positions: Mapping[str, Cell],
         reservations: ReservationTable,
     ) -> DispatchChoice | None:
+        """从非空队列和空闲车集合选出一组，P 无可行组合时返回 None。"""
         if self.completion is None:
+            # 仿真层已按发布时间和任务编号排列队列，B0 只给队首任务选车。
             task = next(iter(pending))
             distances = {}
             for vehicle_id, position in positions.items():
@@ -83,6 +98,7 @@ class Dispatcher:
 
         candidates = tuple(self.completion.candidates(tick, pending, positions, reservations))
         feasible = (candidate for candidate in candidates if candidate.estimated_finish is not None)
+        # 同一预计完成时刻依次按发布时刻、任务编号和车辆编号打平。
         best = min(feasible, key=lambda candidate: (
             candidate.estimated_finish, candidate.task.release_time, candidate.task.id, candidate.vehicle_id,
         ), default=None)

@@ -6,10 +6,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from warehouse_sim.algorithms.planner import shortest_path
 from warehouse_sim.models import GridMap, Scenario, TaskSpec, VehicleSpec, load_scenario
 from warehouse_sim.output import read_csv, save_result
-from warehouse_sim.planner import shortest_path
-from warehouse_sim.simulator import run
+from warehouse_sim.simulation.simulator import run
 
 ROOT = Path(__file__).resolve().parents[1]
 

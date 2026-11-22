@@ -1,4 +1,7 @@
-"""Replay dispatch from the saved trace and independently count completed tasks."""
+"""根据输入和逐帧轨迹回放派单与取放货。
+
+重建各时刻的待办队列和空闲车辆，复算候选评分与任务完成时间，再与保存的日志比对。
+"""
 
 from collections import deque
 import json
@@ -12,6 +15,7 @@ def _position(row):
 
 
 def _observe_service(scenario, task, record, previous, row, tick):
+    """用相邻轨迹帧核对移动和服务动作，并重建取放货时刻。"""
     action = row["action"]
     position = _position(row)
     if action not in ("move", "wait", "pickup", "dropoff") or (action == "move") != (position != _position(previous)):
@@ -27,6 +31,7 @@ def _observe_service(scenario, task, record, previous, row, tick):
             continue
         if position != goal or finished in record or (service == "dropoff" and "picked_at" not in record):
             raise ValueError(f"t={tick}: invalid {service} for {task.id}")
+        # 当前轨迹帧记录动作结束时刻，因此首个服务动作从 tick - 1 开始。
         first = record.setdefault(started, tick - 1)
         if tick - first == duration:
             record[finished] = tick
@@ -38,6 +43,7 @@ def _observe_service(scenario, task, record, previous, row, tick):
 
 
 def _completion_choice(scenario, tick, pending, idle, frame, distances, reservations):
+    """从轨迹中的车辆位置重新计算 B1/P 候选分数及排序。"""
     candidates, ranks = [], []
     for task in pending:
         pickup, delivery = tuple(task.pickup), tuple(task.delivery)
@@ -62,7 +68,7 @@ def _completion_choice(scenario, tick, pending, idle, frame, distances, reservat
 
 
 def audit_dispatch(scenario, trace, decisions, task_rows, last_tick):
-    """Reconstruct the queue, idle pool, and (for P) bookings at every decision."""
+    """逐时刻复核派单，并从实际服务动作复算完成数和完成时间。"""
     frames = [{} for _ in range(last_tick + 1)]
     for row in trace:
         frames[int(row["time"])][row["vehicle_id"]] = row
@@ -79,7 +85,7 @@ def audit_dispatch(scenario, trace, decisions, task_rows, last_tick):
     reservations = ReservationTable({v.id: tuple(v.start) for v in scenario.vehicles}) if policy == "P" else None
     busy, observed, completed = {}, {}, {}
     for tick, frame in enumerate(frames):
-        # The frame shows the action that ended at t. Dispatch follows that action.
+        # 先从本帧确认哪些车刚刚放货，再决定当前时刻哪些车可以领单。
         for vehicle, row in frame.items():
             if vehicle not in busy:
                 if row["phase"] != "idle" or row["action"] not in ("initial", "wait"):
@@ -124,6 +130,7 @@ def audit_dispatch(scenario, trace, decisions, task_rows, last_tick):
                 if int(decision["estimated_finish"]) != finish or json.loads(decision["candidates"]) != candidates:
                     raise ValueError(f"Dispatch {index + 1}: candidate completion estimates disagree")
             if reservations is not None:
+                # P 逐单重建预约，并逐步核对中选路线是否按计划执行。
                 reservations.commit(chosen, tick, _position(frame[chosen]), steps)
                 for offset, step in enumerate(steps, 1):
                     if tick + offset > last_tick:
@@ -138,6 +145,7 @@ def audit_dispatch(scenario, trace, decisions, task_rows, last_tick):
 
     if len(observed) != len(decisions):
         raise ValueError("Unexpected extra dispatch records")
+    # 用动作重建的任务历程核对任务表，再从重建结果计算整轮指标。
     for task_id, row in ledger.items():
         record = observed.get(task_id, {})
         task = tasks[task_id]

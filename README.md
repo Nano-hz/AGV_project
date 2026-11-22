@@ -262,7 +262,7 @@ project/
   docs/                    算法与实验说明、环境记录
 ```
 
-算法层读取共享模型、当前候选和预约，返回选择与路线。仿真层负责分配任务、提交预约、推进车辆状态和写出事件。命令行入口为 `python -m warehouse_sim`，旧的 Python 导入路径由包顶层的同名模块转发。
+算法层读取共享模型、当前候选和预约，返回选择与路线。仿真层负责分配任务、提交预约、推进车辆状态和写出事件。命令行入口为 `python -m warehouse_sim`。在 Python 中可通过 `from warehouse_sim.simulation.simulator import run` 调用仿真，通过 `from warehouse_sim.algorithms.planner import shortest_path` 调用静态寻路。
 
 作者、学号、两人分工、联系方式：**待项目成员填写**。最终报告与提交包尚未制作。
 

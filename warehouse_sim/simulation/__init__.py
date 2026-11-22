@@ -1,1 +1,1 @@
-"""Simulation state, clock, and trace verification."""
+"""仿真层，负责推进车辆状态、记录结果和回放日志进行核验。"""

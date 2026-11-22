@@ -1,4 +1,8 @@
-"""Advance all vehicles together by one action per discrete tick."""
+"""仓库仿真的主循环。
+
+按时间步发布任务、执行派单并提交路线。每辆车每步执行一个动作，随后记录轨迹、
+取放货事件和整轮统计。派单评分和寻路由算法层提供。
+"""
 
 from collections import deque
 from dataclasses import dataclass, field
@@ -13,6 +17,8 @@ from .collisions import audit_trajectory
 
 @dataclass
 class VehicleState:
+    """一辆车在当前时间步的位置、载货状态、待执行动作和计数。"""
+
     vehicle: VehicleSpec
     task: TaskSpec | None = None
     position: Cell = field(init=False)
@@ -36,12 +42,14 @@ class VehicleState:
         return self.task_row["status"] if self.task_row is not None else "idle"
 
     def event(self, tick, kind):
+        """把当前车辆、任务和位置写成一条带时间戳的事件。"""
         return {
             "time": tick, "event": kind, "vehicle_id": self.vehicle_id,
             "task_id": self.task.id if self.task else "", "x": self.position[0], "y": self.position[1],
         }
 
     def snapshot(self, tick, action):
+        """记录动作结束时的车辆状态，供轨迹回放和核验。"""
         return {
             "time": tick, "vehicle_id": self.vehicle_id, "x": self.position[0], "y": self.position[1],
             "phase": self.phase, "task_id": self.task.id if self.task_row and self.task_row["assigned_at"] is not None else "",
@@ -50,6 +58,7 @@ class VehicleState:
         }
 
     def advance(self, tick, events):
+        """执行区间 [tick, tick+1) 的一个动作，返回区间结束时的轨迹行。"""
         step = self.steps.popleft() if self.steps else Step("wait", self.position)
         following = self.steps[0].action if self.steps else None
         if step.action == "move":
@@ -63,6 +72,7 @@ class VehicleState:
             if self.task_row[key] is None:
                 self.task_row[key] = tick
                 events.append(self.event(tick, step.action + "_started"))
+            # 取货或放货可占多步，完成时刻记在最后一个服务动作结束时。
             if following != step.action:
                 if step.action == "pickup":
                     self.task_row.update(picked_at=tick + 1, status="picked_up")
@@ -78,6 +88,7 @@ class VehicleState:
         return self.snapshot(tick + 1, step.action)
 
     def assign(self, task, row, tick, events):
+        """把任务绑定到该车，更新任务记录并进入前往取货位的阶段。"""
         self.task, self.task_row = task, row
         row.update(vehicle_id=self.vehicle_id, assigned_at=tick, status="assigned")
         self.phase = "to_pickup"
@@ -102,6 +113,8 @@ def _queue_event(task, tick, kind):
 
 @dataclass
 class SimulationResult:
+    """一轮仿真的输入及轨迹、事件、派单、任务和汇总记录。"""
+
     scenario: Scenario
     trace: list[dict]
     events: list[dict]
@@ -111,6 +124,7 @@ class SimulationResult:
 
 
 def _reserve(scenario, state, tick, reservations, events, steps=None):
+    """提交已有路线或为已接单车辆规划，失败时保留任务供下一步重试。"""
     if reservations is None:
         steps = plan_static_task(scenario, state.task, state.position)
     else:
@@ -125,12 +139,13 @@ def _reserve(scenario, state, tick, reservations, events, steps=None):
 
 
 def _dispatch(scenario, tick, pending, states, rows, reservations, events, dispatches, dispatcher):
+    """反复请算法层选一组车和任务，将中选任务移出队列并记录派单。"""
     idle = {state.vehicle_id: state for state in states if state.phase == "idle"}
     while pending and idle:
         positions = {vehicle_id: state.position for vehicle_id, state in idle.items()}
         choice = dispatcher.choose(tick, pending, positions, reservations)
         if choice is None:
-            # Leave all tasks pending and reconsider after advancing the clock.
+            # 当前没有可行组合，队列留到下一时间步重评。
             events.append({**_queue_event(pending[0], tick, "dispatch_deferred"), "reason": "no_feasible_pair"})
             break
 
@@ -148,10 +163,12 @@ def _dispatch(scenario, tick, pending, states, rows, reservations, events, dispa
             record["estimated_finish"] = choice.estimated_finish
             record["candidates"] = json.dumps([candidate.log() for candidate in choice.candidates], ensure_ascii=False)
         dispatches.append(record)
+        # 提交路线后再选同一时间步的下一单，让后续评分看到新预约。
         _reserve(scenario, state, tick, reservations, events, choice.steps)
 
 
 def run(scenario: Scenario) -> SimulationResult:
+    """运行一轮仿真，直到全部任务完成或达到场景的时间上限。"""
     scenario.validate()
     started = perf_counter()
     multi = len(scenario.vehicles) > 1
@@ -171,6 +188,7 @@ def run(scenario: Scenario) -> SimulationResult:
     time = 0
 
     while time < scenario.max_steps and any(row["status"] != "completed" for row in rows.values()):
+        # 先处理当前时刻发布的任务，随后为尚无路线的已接单车辆重试规划。
         if auto:
             while future and future[0].release_time <= time:
                 task = future.popleft()
@@ -189,6 +207,7 @@ def run(scenario: Scenario) -> SimulationResult:
         if auto:
             _dispatch(scenario, time, pending, states, rows, reservations, events, dispatches, dispatcher)
 
+        # 本时间步的派单和预约已确定，每辆车各执行一个动作。
         for state in states:
             trace.append(state.advance(time, events))
         time += 1
@@ -208,6 +227,7 @@ def run(scenario: Scenario) -> SimulationResult:
 
     audit = audit_trajectory(scenario, trace, time)
     completed = [row for row in rows.values() if row["status"] == "completed"]
+    # 未跑完的轮次仍记录已完成任务数与完成率，两个整轮时间指标留空。
     all_completed = len(completed) == len(rows)
     failure = None if all_completed else "max_steps_exceeded"
     if audit["conflict_count"]:

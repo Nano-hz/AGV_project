@@ -4,10 +4,10 @@ from dataclasses import replace
 from pathlib import Path
 import unittest
 
-from warehouse_sim.collisions import audit_trajectory
+from warehouse_sim.algorithms.space_time import Reservation, can_step
 from warehouse_sim.models import Scenario, load_scenario
-from warehouse_sim.simulator import run
-from warehouse_sim.space_time import Reservation, can_step
+from warehouse_sim.simulation.collisions import audit_trajectory
+from warehouse_sim.simulation.simulator import run
 
 
 INSTANCES = Path(__file__).resolve().parents[1] / "instances"

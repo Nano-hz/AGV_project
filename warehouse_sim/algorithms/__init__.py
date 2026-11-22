@@ -1,1 +1,1 @@
-"""Route planning, reservations, and dispatch policies."""
+"""算法层，负责静态最短路、时空 A*、路线预约和 B0/B1/P 派单决策。"""

@@ -4,11 +4,11 @@ from dataclasses import replace
 from pathlib import Path
 import unittest
 
-from warehouse_sim.collisions import audit_trajectory
-from warehouse_sim.dispatch_audit import audit_dispatch
 from warehouse_sim.experiment_inputs import Case, PICKUPS, make_input, read_grids
 from warehouse_sim.experiment_report import _paired, _summarize
-from warehouse_sim.simulator import run
+from warehouse_sim.simulation.collisions import audit_trajectory
+from warehouse_sim.simulation.dispatch_audit import audit_dispatch
+from warehouse_sim.simulation.simulator import run
 
 
 MAPS = Path(__file__).resolve().parents[1] / "maps"

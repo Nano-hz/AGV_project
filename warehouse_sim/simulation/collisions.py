@@ -1,4 +1,7 @@
-"""Independently check saved positions, without reading the planner's reservations."""
+"""根据实际轨迹独立核对避碰结果。
+
+先核对各时刻的车辆位置，再逐帧检查非法位移、同格占用和对向交换。
+"""
 
 from itertools import combinations
 
@@ -6,6 +9,7 @@ from ..algorithms.planner import manhattan
 
 
 def audit_trajectory(scenario, rows, last_tick):
+    """验证轨迹覆盖范围和步长，返回两类冲突的计数及首次冲突记录。"""
     starts = {vehicle.id: tuple(vehicle.start) for vehicle in scenario.vehicles}
     if type(last_tick) is not int or not 0 <= last_tick <= scenario.max_steps:
         raise ValueError("Invalid simulation_steps in summary")
@@ -31,6 +35,7 @@ def audit_trajectory(scenario, rows, last_tick):
             if manhattan(before[vehicle_id], cell) > 1:
                 raise ValueError(f"Illegal move by {vehicle_id} at t={tick}")
         for a, b in pairs:
+            # 同一帧重合是同格冲突，相邻两帧互换位置是对向交换。
             if frame[a] == frame[b]:
                 vertices += 1
                 first = first or {"type": "vertex", "time": tick, "vehicles": [a, b]}

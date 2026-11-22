@@ -9,10 +9,10 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from warehouse_sim.__main__ import main
-from warehouse_sim.dispatch_audit import audit_dispatch
 from warehouse_sim.models import AUTO_POLICIES, load_scenario
 from warehouse_sim.output import read_csv, write_json
-from warehouse_sim.simulator import run
+from warehouse_sim.simulation.dispatch_audit import audit_dispatch
+from warehouse_sim.simulation.simulator import run
 
 
 INSTANCES = Path(__file__).resolve().parents[1] / "instances"
