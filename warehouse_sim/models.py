@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 Cell = tuple[int, int]
+AUTO_POLICIES = ("B0", "B1", "P")
 
 
 def integer(value, name: str, minimum: int = 0) -> int:
@@ -116,13 +117,13 @@ class Scenario:
         integer(self.pickup_steps, "pickup_steps", 1)
         integer(self.dropoff_steps, "dropoff_steps", 1)
         integer(self.max_steps, "max_steps", 1)
-        if self.dispatch_policy not in ("fixed", "B0"):
-            raise ValueError("dispatch_policy must be fixed or B0")
-        if self.dispatch_policy == "B0":
-            if len(self.vehicles) != 2 or not self.tasks:
-                raise ValueError("B0 requires two vehicles and at least one task")
+        if self.dispatch_policy not in ("fixed", *AUTO_POLICIES):
+            raise ValueError("dispatch_policy must be fixed, B0, B1, or P")
+        if self.dispatch_policy in AUTO_POLICIES:
+            if len(self.vehicles) not in (2, 4) or not self.tasks:
+                raise ValueError("Automatic dispatch requires two or four vehicles and at least one task")
             if any(task.vehicle_id is not None for task in self.tasks):
-                raise ValueError("B0 tasks must omit vehicle_id; vehicles are assigned at runtime")
+                raise ValueError("Automatic dispatch tasks must omit vehicle_id")
         elif (len(self.vehicles), len(self.tasks)) not in ((1, 1), (2, 2)):
             raise ValueError("Use one vehicle and one task, or two vehicles with one fixed task each")
         for entity in (*self.vehicles, *self.tasks):

@@ -1,0 +1,4 @@
+﻿method,success,task_count,completed_tasks,completion_rate,mean_flow_time,makespan,vertex_conflicts,edge_swap_conflicts,failure_reason
+B0,True,8,8,1.0,66.875,110,0,0,
+B1,True,8,8,1.0,59.375,113,0,0,
+P,True,8,8,1.0,59.0,121,0,0,

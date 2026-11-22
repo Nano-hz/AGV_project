@@ -25,7 +25,10 @@ def write_csv(path, rows, fields=None):
 
 def source_hashes():
     root = Path(__file__).resolve().parent
-    return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.glob("*.py"))}
+    return {
+        path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(root.rglob("*.py"))
+    }
 
 
 def save_result(result, output_dir):
@@ -36,9 +39,12 @@ def save_result(result, output_dir):
     write_csv(output_dir / "trajectory.csv", result.trace)
     write_csv(output_dir / "tasks.csv", result.task_rows)
     if result.dispatches is not None:
-        write_csv(output_dir / "dispatch.csv", result.dispatches, [
+        fields = [
             "sequence", "time", "task_id", "release_time", "vehicle_id", "pickup_distance", "idle_distances",
-        ])
+        ]
+        if result.scenario.dispatch_policy in ("B1", "P"):
+            fields.extend(("estimated_finish", "candidates"))
+        write_csv(output_dir / "dispatch.csv", result.dispatches, fields)
     write_csv(output_dir / "events.csv", result.events)
     write_json(output_dir / "summary.json", result.summary)
     packages = {}

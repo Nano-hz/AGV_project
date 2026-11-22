@@ -52,8 +52,8 @@ def render(run_dir, gif=False, fps=5):
     for row in trace:
         by_vehicle[row["vehicle_id"]].append(row)
     vehicle_ids = sorted(by_vehicle)
-    multi = len(vehicle_ids) == 2
-    route_colors = [colors["route"], "#8251A0"]
+    multi = len(vehicle_ids) > 1
+    route_colors = [colors["route"], "#8251A0", "#C85D3A", "#3C66B2"]
     tracks = {}
     for vehicle_id, color in zip(vehicle_ids, route_colors):
         rows = sorted(by_vehicle[vehicle_id], key=lambda row: int(row["time"]))
@@ -70,8 +70,8 @@ def render(run_dir, gif=False, fps=5):
     title = f"WAREHOUSE AGV / STAGE {summary['stage']}"
     fig.text(0.08, 0.965, title, fontsize=20, weight="bold", color="#203047", va="top")
     description = "2 vehicles, 2 tasks  |  space-time A*" if multi else "1 vehicle, 1 task  |  static A*"
-    if scenario.dispatch_policy == "B0":
-        description = f"{len(vehicle_ids)} vehicles, {len(scenario.tasks)} tasks  |  B0 + space-time A*"
+    if scenario.dispatch_policy != "fixed":
+        description = f"{len(vehicle_ids)} vehicles, {len(scenario.tasks)} tasks  |  {scenario.dispatch_policy} + space-time A*"
     fig.text(0.08, 0.922, f"{grid.name.replace('_', ' ').title()}  |  {description}", color="#64748B", fontsize=11)
     legend = [Patch(facecolor=colors["wall"], label="Shelf / wall")]
     legend += [Line2D([0], [0], marker=m, color="none", markerfacecolor=c, markeredgecolor=c, markersize=8, label=l) for _, m, c, l in markers]
@@ -104,11 +104,14 @@ def render(run_dir, gif=False, fps=5):
                 dot = vehicles[vehicle_id]
                 dot.set_data([xs[index]], [ys[index]])
                 dot.set_markerfacecolor(color if int(row["loaded"]) else "white")
-                if scenario.dispatch_policy == "B0":
+                if scenario.dispatch_policy != "fixed":
                     actions.append(f"{vehicle_id} {row['task_id'] or '-'}: {row['action']}")
                 else:
                     actions.append(f"{vehicle_id}: {row['action']}" if multi else f"{row['action']}   |   {row['phase']}")
-            clock.set_text(f"t = {index}   |   " + "   |   ".join(actions))
+            if len(actions) > 2:
+                clock.set_text(f"t = {index}   |   " + "   |   ".join(actions[:2]) + "\n" + "   |   ".join(actions[2:]))
+            else:
+                clock.set_text(f"t = {index}   |   " + "   |   ".join(actions))
 
         animation = FuncAnimation(fig, update, frames=summary["simulation_steps"] + 1, interval=1000 / fps, blit=False)
         animation.save(run_dir / "replay.gif", writer=PillowWriter(fps=fps), dpi=85)

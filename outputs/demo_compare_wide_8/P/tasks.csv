@@ -1,0 +1,9 @@
+﻿task_id,release_time,pickup_x,pickup_y,delivery_x,delivery_y,vehicle_id,assigned_at,pickup_started_at,picked_at,dropoff_started_at,completed_at,flow_time,status
+T002,0,7,15,18,3,AGV-01,57,76,77,100,101,101,completed
+T003,0,7,4,18,16,AGV-02,73,96,97,120,121,121,completed
+T004,0,7,4,18,7,AGV-01,0,9,10,24,25,25,completed
+T005,0,13,15,18,12,AGV-02,0,15,16,24,25,25,completed
+T001,2,13,4,18,3,AGV-01,25,33,34,40,41,39,completed
+T006,2,7,15,18,16,AGV-02,43,57,58,72,73,71,completed
+T007,5,13,4,18,7,AGV-01,41,47,48,56,57,52,completed
+T008,5,13,15,18,12,AGV-02,25,33,34,42,43,38,completed

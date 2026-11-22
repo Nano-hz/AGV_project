@@ -1,8 +1,74 @@
 # 多 AGV 仓库调度
 
-依据上级目录的《大作业-2026年秋.pptx》和《大作业三题分析与完成方案.md》第二部分实现。**已完成第 3 步「并发任务队列和 B0 自动派单」**。两辆车可以在送达后继续领取队首任务，共用第 2 步的时空 A* 和预约表。
+依据课程要求和仓库调度方案实现。**第 5 步完成 B0、B1、P 的主实验批量对照。** 自动派单支持 2 辆和 4 辆车，各策略共用同一套取送货规则、时空 A* 和预约表。
 
 已准备宽通道、窄通道、单瓶颈三种 20 × 20 地图。仿真使用 Python 标准库，图像和 GIF 由 Matplotlib / Pillow 根据保存的日志生成。
+
+## 复跑第 5 步批量实验
+
+主实验交叉三种地图、2/4 辆车、8/16/24 单和种子 0–9，保存 180 份共同输入，三种策略各运行一次，共 540 次。每个种子用同一组随机取货位和送达位索引，允许重复组合，每件货有独立编号。各地图按下文的四个正式取货位和地图里的四个送达位映射索引。8 单和 16 单是 24 单序列的前缀，不同车数使用同一批任务。两车占第一和最后一个停车位，四车再增加中间两个。所有任务在第 0 步发布，取货和放货各 1 步，全组使用 1000 步上限。
+
+在 `project` 目录用 PowerShell 运行完整实验并复核全部输出。
+
+```powershell
+$run = 'outputs/run_factorial_' + (Get-Date -Format 'yyyyMMdd_HHmmss_fff')
+.\.venv\Scripts\python.exe -m warehouse_sim batch --output $run --workers 4
+.\.venv\Scripts\python.exe -m warehouse_sim batch-verify $run --workers 4
+Import-Csv "$run/overall.csv" | Format-Table
+```
+
+本次交付在 `outputs/run_factorial_main`，也可直接对它运行 `batch-verify`。核验会检查 180 份共同输入及各策略输入是否一致，复核 540 次派单和逐帧轨迹，复算完成时间、冲突数及汇总表。可以省略 `--workers 4` 使用单进程，或在 `batch` 后加 `--seeds 0` 先试跑 54 次。每轮数据可单独用 `verify <run_dir>` 检查。用 `batch-report $run` 从已有 `runs.csv` 重画图和生成统计表。
+
+| 文件 | 内容 |
+| --- | --- |
+| `overall.csv` | 三种策略各自 180 次运行的总体结果 |
+| `summary.csv` | 18 个地图、车数、任务量组合，每个组合 3 行策略统计和样本数 |
+| `paired_summary.csv` | 同种子 P 对 B0/B1 的时间百分比变化及任务完成率变化 |
+| `failures.csv` | 失败轮次的地图、车数、任务量、种子、已完成数、超时、冲突和日志路径 |
+| `runs.csv` | 540 条逐轮统计，可按种子与策略筛选 |
+| `mean_flow_time.png`、`mean_makespan.png`、`task_completion_rate.png` | 按地图和车数分面的任务量曲线 |
+| `instances/`、`runs/`、`manifest.json` | 共同输入、每轮原始轨迹及调度证据、实验配置及地图指纹 |
+
+平均任务完成时间按每单「放货完成时刻 − 发布时间」取平均，总完工时刻取该轮最后一单的放货完成时刻。时间均值与样本标准差只统计整轮成功的种子，空白表示样本不足，`complete_runs` 给出样本数。任务完成率把所有轮次送达的任务数除以所有提交任务数，整轮成功率则是全部任务完成且无冲突的轮次占比。配对时间改善只计算两种策略都成功的种子，正值表示 P 用时更短。配对完成率差纳入全部种子，单位为百分点。超时表示达到 1000 步时仍有任务未交付，失败明细中的末步规划原因来自事件日志。
+
+## 复跑 B0、B1、P 对照
+
+三种策略共用 `instances/b0_wide_8.json` 中的地图、双车起点、8 单任务、发布时间、服务步数和时限。B0 按先来先服务选任务，再选离取货位最近的空闲车。B1 比较所有已发布待办任务与空闲车辆的组合，取「当前时刻 + 到取货位的静态最短距离 + 取货步数 + 到送达位的静态最短距离 + 放货步数」最小的一组。P 对同样的组合运行带预约的时空 A*，用路线长度估计放货完成时刻，计入等待和绕行。P 只在找到可行路线后派单并提交该路线，无可行组合时任务留在队列。预计完成时刻相同时，按任务发布时间、任务编号、车辆编号依次决定。每次派单后处理该车的预约，再选择下一组。
+
+在 `project` 目录打开 PowerShell，复跑三组并核对日志。
+
+```powershell
+$run = 'outputs/run_compare_' + (Get-Date -Format 'yyyyMMdd_HHmmss_fff')
+.\.venv\Scripts\python.exe -m warehouse_sim compare --instance instances/b0_wide_8.json --output $run
+Import-Csv "$run/comparison.csv" | Format-Table
+foreach ($policy in 'B0', 'B1', 'P') {
+    Write-Host $policy
+    .\.venv\Scripts\python.exe -m warehouse_sim verify "$run/$policy"
+}
+```
+
+已保存的同一组结果见 `outputs/demo_compare_wide_8/comparison.csv`。
+
+| 策略 | 完成任务 | 平均任务完成时间 / 步 | 总完工时刻 / 步 | 同格冲突 | 对向交换 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| B0 | 8/8 | 66.875 | 110 | 0 | 0 |
+| B1 | 8/8 | 59.375 | 113 | 0 | 0 |
+| P | 8/8 | 59.000 | 121 | 0 | 0 |
+
+核对派单时，检查各策略的 `dispatch.csv`。B0 用 `idle_distances` 核对空闲车到取货位的格数。B1 和 P 的 `estimated_finish` 是中选组合的预计放货时刻，`candidates` 包含这一轮所有组合的静态预计时刻、策略预计时刻和不可行原因。第 57 步，B1 给 AGV-01 派 T003，静态预计第 96 步完成。P 发现 T003 的送达位已被另一辆车预约为停留点，将其记为 `delivery_reserved_for_stop`，改派预计第 101 步完成的 T002。
+
+```powershell
+foreach ($policy in 'B1', 'P') {
+    Write-Host $policy
+    $decision = Import-Csv "$run/$policy/dispatch.csv" | Where-Object time -eq 57
+    $decision | Format-Table task_id,vehicle_id,estimated_finish
+    $decision.candidates | ConvertFrom-Json | Format-Table task_id,vehicle_id,static_finish,estimated_finish,unavailable_reason
+}
+```
+
+三组 `verify` 均应返回 `dispatch_ok: true`、`checked_dispatches: 8`、`completion_time_ok: true`，两种冲突计数都为 0。它从输入及轨迹重建队列与空闲车辆，重算候选分数，逐帧检查位置和交换。P 的复核使用同一个时空规划器重建预约，并核对中选路线的实际执行。完成时间由轨迹中的取放货动作重新计算，再与 `tasks.csv` 和 `summary.json` 比对。手算时用 `completed_at - release_time` 得到单个任务的完成用时，对 8 单取平均。总完工时刻是最大的 `completed_at`。
+
+也可用 `run --instance instances/b0_wide_8.json --policy P --gif` 单独回放 P，或用 `render "$run/P" --gif` 从已有日志生成回放。
 
 ## 验证 B0 自动派单
 
@@ -133,7 +199,7 @@ python -m venv .venv
 - 地图文件在 `maps/`。`grid` 是等宽字符串数组：`#` 障碍，`.` 通道，`P` 停车位，`U` 取货位，`D` 送达位。所有非障碍格须连通，特殊位置可通行。
 - 坐标是 `[x, y]`，左上角为 `[0, 0]`，x 向右、y 向下，每步只能四连通移动一格或停留。
 - 实例文件在 `instances/`。地图路径相对于实例文件所在目录解析；输出中的实例直接嵌入地图，可独立重跑。
-- 实例顶层指定 `"dispatch_policy": "B0"` 时，需要两辆车和至少一条任务，任务省略 `vehicle_id`。省略策略字段时沿用固定派单格式，支持单车单任务或双车各一条固定任务。两车从不同停车格出发，车辆编号和任务编号分别唯一。同一取货位可对应多件货。
+- 实例顶层 `dispatch_policy` 可指定 `B0`、`B1` 或 `P`。自动派单需要两辆或四辆车和至少一条任务，任务省略 `vehicle_id`。省略策略字段时沿用固定派单格式，支持单车单任务或双车各一条固定任务。车辆从不同停车格出发，车辆编号和任务编号分别唯一。同一取货位可对应多件货。
 - `pickup_steps`、`dropoff_steps` 默认 1，且须为正整数。`max_steps` 默认 1000。`release_time` 是非负整数，任务到达之前车辆原地等待。
 - `seed=0` 随手工实例保留。后续随机任务必须保存实际生成后的实例。
 - 静态 A* 使用曼哈顿距离。双车时空 A* 的估计值是忽略动态预约时剩余的最短路距离加剩余服务步数，遇到同优先级按入队顺序处理。
@@ -154,43 +220,49 @@ python -m venv .venv
 | `trajectory.csv` | 每个整数时刻的位置、阶段、载货标志、任务状态、上一时间步动作、累计计数 |
 | `events.csv` | 释放、领取、规划、到达、开始服务、完成或失败事件 |
 | `tasks.csv` | 包括未完成任务在内的到达、领取、取货和送达时刻 |
-| `dispatch.csv` | B0 运行的逐单派单记录，含出队顺序、派单时刻、所选车辆及所有空闲车距取货位的格数 |
+| `dispatch.csv` | 自动派单记录，含派单时刻、所选车辆和候选距离。B1、P 还记录所有候选组合的预计完成时刻 |
 | `summary.json` | 完成率、平均完成时间、总完工时间、距离、等待、服务、失败原因、运行耗时 |
 | `metadata.json` | 实际 Python / 依赖版本、源码和实例 SHA-256、UTC 生成时刻 |
 | `trajectory.png` | 从轨迹日志生成的静态图，使用 `--plot` 或 `--gif` 时生成 |
 | `replay.gif` | 从逐步日志生成的动画，使用 `--gif` 时生成 |
 
-车辆阶段依次为 `idle`、`to_pickup`、`pickup`、`to_delivery`、`dropoff`、`idle`。任务状态为 `unreleased`、`pending`（B0 已入队）、`assigned`、`picked_up`、`completed`。某车放货完成时刻为 t 时，即可参与时刻 t 的派单，下一次移动发生在区间 [t, t+1)。
+车辆阶段依次为 `idle`、`to_pickup`、`pickup`、`to_delivery`、`dropoff`、`idle`。任务状态为 `unreleased`、`pending`（已入队）、`assigned`、`picked_up`、`completed`。某车放货完成时刻为 t 时，即可参与时刻 t 的派单，下一次移动发生在区间 [t, t+1)。
 
 主指标 `mean_flow_time` 是任务发布到完成的平均步数，`makespan` 是最后一单的完成时刻。全部任务完成时这两项才有值。`total_wait_steps` 汇总各车的等待，包含任务发布前和送达后原地停留，取放货另计。对每辆车，行驶步数 + 等待步数 + 服务步数等于仿真经过步数。`runtime_seconds` 统计仿真和轨迹校验的耗时。
 
 成功退出码为 0，非法输入 / 文件或绘图错误为 1，达到最大步数但任务未完成为 2。超时运行仍保存已发生的轨迹和任务记录，`failure_reason=max_steps_exceeded`。非法或不连通地图在启动前拒绝。
 
-## 目录结构与下一步
+## 目录结构
 
 ```text
 project/
   .venv/                   本机隔离环境，迁移和提交时不打包
   requirements.txt         完整固定依赖
   warehouse_sim/
-    models.py              地图、车辆、任务与输入校验
-    planner.py             单车静态 A*
-    space_time.py          双车时空 A* 和预约表
-    collisions.py          根据轨迹查同格碰撞与对向交换
-    dispatch_audit.py      根据任务发布时间和实际轨迹复核 B0 派单
-    simulator.py           状态机、计时与汇总指标
+    models.py              两层共用的地图、车辆、任务与输入校验
+    algorithms/
+      planner.py           静态 A* 和最短距离
+      space_time.py        取送路线规划、时空 A* 和预约表
+      dispatch.py          B0、B1、P 候选评分与选车选单
+    simulation/
+      simulator.py         任务队列、状态推进、执行派单和记录结果
+      collisions.py        从轨迹检查同格冲突与对向交换
+      dispatch_audit.py    从输入和轨迹复核派单与完成时间
+    experiment_inputs.py  生成配对的批量实验输入
+    experiments.py         批量运行与复核
+    experiment_report.py  汇总表与实验图
     output.py              CSV / JSON 与复现信息
     visualize.py           日志绘图和 GIF 回放
     __main__.py            命令行入口
   maps/                    三种固定 20 × 20 地图
-  instances/               单车、双车固定任务与 B0 多任务实例
+  instances/               单车、双车固定任务与多任务实例
   scripts/                 环境搭建、检查及固定输入生成
-  tests/                   单车与双车正确性测试
+  tests/                   仿真、调度、避碰和实验统计测试
   outputs/demo_*/          已运行的开发演示结果
-  docs/                    环境记录、第一步验收与后续边界
+  docs/                    算法与实验说明、环境记录
 ```
 
-第 4 步将加入 B1 和 P，与 B0 共用相同任务、地图及避碰规则。
+算法层读取共享模型、当前候选和预约，返回选择与路线。仿真层负责分配任务、提交预约、推进车辆状态和写出事件。命令行入口为 `python -m warehouse_sim`，旧的 Python 导入路径由包顶层的同名模块转发。
 
 作者、学号、两人分工、联系方式：**待项目成员填写**。最终报告与提交包尚未制作。
 
