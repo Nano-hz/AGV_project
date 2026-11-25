@@ -13,8 +13,8 @@
 | [warehouse_sim/simulation/](../warehouse_sim/simulation/) | 执行决定。`simulator.py` 发布订单、逐步移动车辆并记录取放货。`collisions.py` 检查实际轨迹，`dispatch_audit.py` 根据轨迹复核派单和完成时间。 |
 | [scripts/](../scripts/) | 搭建 Windows 环境、检查依赖、生成基础地图和单车示例的辅助脚本。仓库已附带运行示例所需的地图和订单。 |
 | [tests/](../tests/) | 用可手算的小例子检查车辆移动、派单顺序、避碰、实验统计和枚举参考值。 |
-| [outputs/](../outputs/) | `demo_*` 保存随仓库提供的演示。`run_*` 是自己运行后生成的结果，每次实验可以写入新目录。 |
-| [docs/](./) | 本指南、原版算法与实验记录、分阶段运行说明和环境记录。 |
+| [outputs/](../outputs/README.md) | 这里按 E1–E5 列出正式批次、结果表和动画。`demos/` 收集可直接查看的演示，`archive/` 保存本地的重复运行和复核记录。 |
+| [docs/](./) | 本指南说明实验怎样做，[算法与实验记录](ALGORITHMS_AND_EXPERIMENTS.md) 保存公式、结果和案例分析。 |
 
 实验入口也在 `warehouse_sim/` 下。主实验由 `experiment_inputs.py` 生成订单，`experiments.py` 运行和核验，`experiment_report.py` 汇总绘图。分批发布和小规模枚举分别在 [supplementary.py](../warehouse_sim/supplementary.py) 和 [reference_experiment.py](../warehouse_sim/reference_experiment.py)。
 
@@ -90,4 +90,4 @@ $e5 = "outputs/run_e5_$stamp"
 & $py -m warehouse_sim e5-verify $e5
 ```
 
-主实验的 `summary.csv` 按地图、车数、单数和策略分组，`paired_summary.csv` 用同一批订单比较速度。E4 的 `paired_release.csv` 比较同一策略在两种发布时间下的表现。E5 的 `comparison.csv` 给出各策略与参考值的差距，`reference/` 下保存每个实例的枚举明细和最佳轨迹。已有结果与案例解读见[原版算法与实验记录](ALGORITHMS_AND_EXPERIMENTS.md)。
+主实验的 `summary.csv` 按地图、车数、单数和策略分组，`paired_summary.csv` 用同一批订单比较速度。E4 的 `paired_release.csv` 比较同一策略在两种发布时间下的表现。E5 的 `comparison.csv` 给出各策略与参考值的差距，`reference/` 下保存每个实例的枚举明细和最佳轨迹。已有结果与案例解读见[算法与实验记录](ALGORITHMS_AND_EXPERIMENTS.md)。

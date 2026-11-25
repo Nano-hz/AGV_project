@@ -55,14 +55,11 @@ for method in B0 B1 P; do .venv/bin/python -m warehouse_sim verify "$run/$method
 
 ## 文档入口
 
-详细说明都在 `docs/` 目录下。想从头了解项目，可以先读 `docs/PROJECT_GUIDE.md`。
-
 | 想了解什么 | 读哪份文档 |
 | --- | --- |
 | 目录怎么找、三种算法怎么选单、五组实验如何设计与验证 | [项目与实验指南](docs/PROJECT_GUIDE.md) |
-| 查看已有实验的结果表、公式和失败案例 | [原版算法与实验记录](docs/ALGORITHMS_AND_EXPERIMENTS.md) |
-| 查看最初怎样验证地图、单车动作和计时 | [第一步实施与验收记录](docs/STEP1.md) |
-| 查找旧版首页里的分阶段命令、示例数据和日志字段 | [旧版 README](docs/README_PREVIOUS.md) |
+| 查看实验结果、统计口径和超时案例 | [算法与实验记录](docs/ALGORITHMS_AND_EXPERIMENTS.md) |
+| 找到报告对应的原始数据、三种策略的结果表和小车动画 | [实验输出索引](outputs/README.md) |
 
 ### 复跑 E4 分批发布与 E5 小规模枚举
 

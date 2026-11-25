@@ -29,7 +29,7 @@
 
 B1 和 P 的预计完成时刻相同时，依次按任务发布时间、任务编号、车辆编号决定顺序。B0、B1 选中组合后才调用时空 A*。若当前规划失败，车辆保留任务，原地等待，下一个时间步重试。P 试算时读取当前预约，对得到路线的候选排序，最后直接提交胜者的路线。每次派单的候选日志记录该轮各组合的分数或不可行原因。若所有候选都不可行，任务留在队列，系统推进一个时间步后重新评估。这三种方法都逐单贪心决策，之后的组合会根据更新后的车辆状态和预约重新评分。
 
-第 4 步共用实例给出了一个可以查日志的例子。第 57 步，B1 给 AGV-01 选了预计第 96 步完成的 T003。P 试算时发现 T003 的送达格是另一辆车已预约的停留点，因此给 AGV-01 派了预计第 101 步完成的 T002。两次决策的候选细节见 [B1 派单日志](../outputs/demo_compare_wide_8/B1/dispatch.csv) 和 [P 派单日志](../outputs/demo_compare_wide_8/P/dispatch.csv)。评分实现见 [dispatch.py](../warehouse_sim/algorithms/dispatch.py) 和 [planner.py](../warehouse_sim/algorithms/planner.py)。
+第 4 步共用实例给出了一个可以查日志的例子。第 57 步，B1 给 AGV-01 选了预计第 96 步完成的 T003。P 试算时发现 T003 的送达格是另一辆车已预约的停留点，因此给 AGV-01 派了预计第 101 步完成的 T002。两次决策的候选细节见 [B1 派单日志](../outputs/demos/wide_8_compare/B1/dispatch.csv) 和 [P 派单日志](../outputs/demos/wide_8_compare/P/dispatch.csv)。评分实现见 [dispatch.py](../warehouse_sim/algorithms/dispatch.py) 和 [planner.py](../warehouse_sim/algorithms/planner.py)。
 
 ## 3. 时空 A* 与预约避碰
 
