@@ -82,7 +82,7 @@ def audit_dispatch(scenario, trace, decisions, task_rows, last_tick):
     targets = {tuple(cell) for task in tasks.values() for cell in (task.pickup, task.delivery)}
     distance_maps = {cell: distances_to(scenario.grid, cell) for cell in targets}
     policy = scenario.dispatch_policy
-    reservations = ReservationTable({v.id: tuple(v.start) for v in scenario.vehicles}) if policy == "P" else None
+    reservations = ReservationTable({v.id: tuple(v.start) for v in scenario.vehicles}) if policy in ("P", "ordered") else None
     busy, observed, completed = {}, {}, {}
     for tick, frame in enumerate(frames):
         # 先从本帧确认哪些车刚刚放货，再决定当前时刻哪些车可以领单。
@@ -106,7 +106,17 @@ def audit_dispatch(scenario, trace, decisions, task_rows, last_tick):
             pending.append(future.popleft())
         idle = frame.keys() - busy.keys()
         while idle and pending:
-            if policy == "B0":
+            if policy == "ordered":
+                # 按参考序列逐项检查能否在本时刻预约，同时复核中选的完整路线。
+                task_id, chosen = scenario.dispatch_order[len(observed)]
+                task = tasks[task_id]
+                if task not in pending or chosen not in idle:
+                    break
+                steps, _ = plan_task(scenario, task, _position(frame[chosen]), tick, reservations.others(chosen))
+                if steps is None:
+                    break
+                distances = {v: distance_maps[task.pickup][_position(frame[v])] for v in idle}
+            elif policy == "B0":
                 task = pending[0]
                 distances = {v: distance_maps[tuple(task.pickup)][_position(frame[v])] for v in idle}
                 chosen = min(idle, key=lambda vehicle: (distances[vehicle], vehicle))
@@ -126,7 +136,7 @@ def audit_dispatch(scenario, trace, decisions, task_rows, last_tick):
                       decision["vehicle_id"], int(decision["pickup_distance"]), json.loads(decision["idle_distances"]))
             if actual != expected:
                 raise ValueError(f"Dispatch {index + 1}: expected t={tick}, {task.id} -> {chosen}, distances={distances}")
-            if policy != "B0":
+            if policy in ("B1", "P"):
                 if int(decision["estimated_finish"]) != finish or json.loads(decision["candidates"]) != candidates:
                     raise ValueError(f"Dispatch {index + 1}: candidate completion estimates disagree")
             if reservations is not None:
@@ -137,7 +147,7 @@ def audit_dispatch(scenario, trace, decisions, task_rows, last_tick):
                         raise ValueError(f"Dispatch {index + 1}: planned route extends past the trace")
                     row = frames[tick + offset][chosen]
                     if _position(row) != step.end or row["action"] != step.action:
-                        raise ValueError(f"Dispatch {index + 1}: P did not execute the selected route")
+                        raise ValueError(f"Dispatch {index + 1}: {policy} did not execute the selected route")
             observed[task.id] = {"vehicle_id": chosen, "assigned_at": tick}
             busy[chosen] = task.id
             idle.remove(chosen)

@@ -109,3 +109,54 @@ $run = 'outputs/run_factorial_' + (Get-Date -Format 'yyyyMMdd_HHmmss_fff')
 - [总体汇总](../outputs/run_factorial_main/overall.csv)、[54 行分组汇总](../outputs/run_factorial_main/summary.csv)、[配对汇总](../outputs/run_factorial_main/paired_summary.csv) 和 [失败明细](../outputs/run_factorial_main/failures.csv)。
 - [平均任务完成时间](../outputs/run_factorial_main/mean_flow_time.png)、[总完工时刻](../outputs/run_factorial_main/mean_makespan.png) 和 [任务完成率](../outputs/run_factorial_main/task_completion_rate.png)。
 - [运行与环境说明](../README.md)。
+
+## 8. E4 分批发布对照
+
+在单瓶颈地图上固定 2 辆车、4 个取货位、16 单、1000 步上限，沿用主实验种子 0–9 的订单。每个种子的 16 单先全部在第 0 步发布，再按原订单编号每 4 单一批，在第 0、10、20、30 步发布。车辆起点、地图、取送位置和服务时长均相同。每种发布时间表各跑 B0、B1、P 一次。每一单从自身发布时刻开始计时，总完工时刻从整轮的第 0 步开始计时。
+
+| 发布时间 | 策略 | 整轮完成 / 10 | 送达 / 160 单 | 平均任务完成时间（步） | 总完工时刻均值（步） | 超时轮数 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 同时 | B0 | 3 | 112 | 153.08 | 286.33 | 7 |
+| 同时 | B1 | 3 | 126 | 122.56 | 260.67 | 7 |
+| 同时 | P | 10 | 160 | 107.03 | 251.90 | 0 |
+| 分批 | B0 | 3 | 112 | 138.08 | 286.33 | 7 |
+| 分批 | B1 | 2 | 124 | 94.84 | 243.50 | 8 |
+| 分批 | P | 10 | 160 | 98.49 | 262.50 | 0 |
+
+两列时间只统计整轮成功的种子，送达数包含超时轮次。60 轮轨迹的同格、对向交换冲突均为 0。P 分批后，每单从发布到送达的时间缩短，最后一单在仿真时钟上平均晚 10.60 步完成。B1 两种模式都成功的只有种子 2，表内两个均值包含不同种子。正式对照的每组样本数、样本标准差和配对数据可查 [E4 汇总](../outputs/run_e4_release_20261123/summary.csv)、[同策略分批相对同时发布的改善](../outputs/run_e4_release_20261123/paired_release.csv) 和 [同发布方式下 P 相对基线的改善](../outputs/run_e4_release_20261123/paired_policy.csv)。
+
+## 9. E5 小规模枚举参考
+
+两个人工实例分别设置重复取货位和重复送达位。另从正式地图生成两个随机实例，分别为窄通道种子 0、单瓶颈种子 1。每个实例固定两辆车，全部订单在第 0 步发布，B0、B1、P 和枚举共用同一地图、任务、仿真器和时空 A* 预约规则。
+
+枚举先排出所有订单的领取顺序，再给每个位置选一辆车，同一辆车可以承接多单。3 单有 3! × 2³ = 48 种，4 单有 4! × 2⁴ = 384 种。执行每个序列时，表头订单等到指定车辆空闲且整条路线可预约才派出，随后立即尝试下一项；每步仍按正式仿真推进。枚举允许车辆等待指定订单，路线由固定的时空 A* 选定。参考值是在该顺序、分配和预约规则范围内，完整送达且零冲突的最小平均任务完成时间。同分优先选总完工时刻较早者，再以序列编号打平。任意主动延迟或改走其他可行路线超出了此次枚举范围。
+
+| 实例 | 成功序列 / 枚举数 | 参考值（步） | B0（步） | B1（步） | P（步） | P 高于参考值 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 人工 · 宽通道重复取货 | 48 / 48 | 38.00 | 40.00 | 38.00 | 38.00 | 0.00% |
+| 人工 · 单瓶颈重复送达 | 248 / 384 | 40.75 | 59.50 | 43.25 | 43.25 | 6.13% |
+| 随机 · 窄通道 3 单 | 28 / 48 | 34.00 | 34.00 | 34.00 | 34.00 | 0.00% |
+| 随机 · 单瓶颈 4 单 | 144 / 384 | 37.50 | 54.50 | 60.25 | 46.00 | 22.67% |
+
+差距按（策略均值 − 参考均值）÷ 参考均值计算。12 轮策略运行均完成且零冲突。以最后一例为例，最佳参考方案的 4 单分别在第 42、34、32、42 步完成，平均为 37.50 步，最后一单在第 42 步完成。各策略的完工时刻、差距与冲突数见 [E5 对照表](../outputs/run_e5_reference_20261123/comparison.csv)；参考最小均值对应的完工时刻和单独最小化完工时刻的结果见 [参考汇总](../outputs/run_e5_reference_20261123/references.csv)。
+
+### 核验示例
+
+按 [README 中的命令](../README.md#复跑-e4-分批发布与-e5-小规模枚举) 可完整重跑两组实验。在项目根目录，也可以直接核验已有结果，或查看某一轮。
+
+```powershell
+$py = '.\.venv\Scripts\python.exe'
+$e4 = 'outputs/run_e4_release_20261123'
+$e5 = 'outputs/run_e5_reference_20261123'
+& $py -m warehouse_sim e4-verify $e4
+& $py -m warehouse_sim e5-verify $e5
+$waves = "$e4/runs/bottleneck_v2_n16_s00_waves/P"
+Import-Csv "$waves/events.csv" | Where-Object event -eq 'task_released' | Group-Object time
+& $py -m warehouse_sim verify $waves
+& $py -m warehouse_sim render $waves
+$best = "$e5/reference/random_bottleneck_v2_n04_s01"
+Import-Csv "$best/tasks.csv" | Format-Table task_id,vehicle_id,assigned_at,completed_at,flow_time
+& $py -m warehouse_sim verify $best
+```
+
+E4 的发布事件应在四个时刻各出现 4 次，`render` 从保存的轨迹生成 `trajectory.png`。E5 每个参考目录的 `candidates.csv` 保留每一种分配的顺序、成败和指标；`instance.json` 保存获选序列，可直接交给 `run --instance` 单独复跑。整组核验会再次枚举全部候选，校验最小值、获选序列、轨迹和汇总，并对照 P 的实际派单顺序重放其结果。

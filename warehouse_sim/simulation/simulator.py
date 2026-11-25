@@ -11,7 +11,7 @@ from time import perf_counter
 
 from ..algorithms.dispatch import Dispatcher
 from ..algorithms.space_time import ReservationTable, Step, plan_static_task, plan_task
-from ..models import AUTO_POLICIES, Cell, Scenario, TaskSpec, VehicleSpec
+from ..models import Cell, Scenario, TaskSpec, VehicleSpec
 from .collisions import audit_trajectory
 
 
@@ -146,7 +146,8 @@ def _dispatch(scenario, tick, pending, states, rows, reservations, events, dispa
         choice = dispatcher.choose(tick, pending, positions, reservations)
         if choice is None:
             # 当前没有可行组合，队列留到下一时间步重评。
-            events.append({**_queue_event(pending[0], tick, "dispatch_deferred"), "reason": "no_feasible_pair"})
+            reason = "ordered_pair_unavailable" if scenario.dispatch_policy == "ordered" else "no_feasible_pair"
+            events.append({**_queue_event(pending[0], tick, "dispatch_deferred"), "reason": reason})
             break
 
         task, chosen = choice.task, choice.vehicle_id
@@ -172,7 +173,7 @@ def run(scenario: Scenario) -> SimulationResult:
     scenario.validate()
     started = perf_counter()
     multi = len(scenario.vehicles) > 1
-    auto = scenario.dispatch_policy in AUTO_POLICIES
+    auto = scenario.dispatch_policy != "fixed"
     dispatcher = Dispatcher(scenario) if auto else None
     states = [VehicleState(vehicle) for vehicle in sorted(scenario.vehicles, key=lambda vehicle: vehicle.id)]
     tasks = sorted(scenario.tasks, key=lambda task: (task.release_time, task.id) if auto else (task.vehicle_id or "", task.id))
@@ -232,8 +233,9 @@ def run(scenario: Scenario) -> SimulationResult:
     failure = None if all_completed else "max_steps_exceeded"
     if audit["conflict_count"]:
         failure = "trajectory_conflict"
+    dispatch_stages = {"B0": 3, "B1": 4, "P": 4, "ordered": 5}
     summary = {
-        "schema_version": 1, "stage": 4 if scenario.dispatch_policy in ("B1", "P") else (3 if auto else (2 if multi else 1)),
+        "schema_version": 1, "stage": dispatch_stages.get(scenario.dispatch_policy, 2 if multi else 1),
         "method": scenario.dispatch_policy if auto else ("fixed_assignment_space_time_astar" if multi else "single_agv_static_astar"),
         "instance": scenario.name, "map": scenario.grid.name, "seed": scenario.seed,
         "vehicle_count": len(states), "task_count": len(rows), "completed_tasks": len(completed),

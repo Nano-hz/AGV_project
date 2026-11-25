@@ -58,6 +58,11 @@ def main(argv=None):
     batch_verify.add_argument("--workers", type=int, default=1)
     batch_report = commands.add_parser("batch-report", help="Rebuild tables and figures from runs.csv")
     batch_report.add_argument("directory", type=Path)
+    for name, description in (("e4", "paired release-time experiment"), ("e5", "small enumeration reference")):
+        supplement = commands.add_parser(name, help=f"Run the {description}")
+        supplement.add_argument("--output", type=Path, help="New output directory")
+        check_supplement = commands.add_parser(f"{name}-verify", help=f"Check the {description} and its tables")
+        check_supplement.add_argument("directory", type=Path)
     verify = commands.add_parser("verify", help="Check saved trajectories and replay automatic dispatch and completion times")
     verify.add_argument("run_dir", type=Path)
     replay = commands.add_parser("render", help="Render an existing run, without rerunning simulation")
@@ -66,6 +71,17 @@ def main(argv=None):
     replay.add_argument("--fps", type=int, default=5)
     args = parser.parse_args(argv)
     try:
+        if args.command in ("e4", "e4-verify", "e5", "e5-verify"):
+            if args.command.startswith("e4"):
+                from .supplementary import release_experiment as experiment
+            else:
+                from .reference_experiment import reference_experiment as experiment
+            verify_saved = args.command.endswith("-verify")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            directory = args.directory if verify_saved else args.output or ROOT / "outputs" / f"run_{args.command}_{timestamp}"
+            counts = experiment(directory, ROOT / "maps", verify_saved)
+            print(json.dumps({**counts, "verified": verify_saved, "directory": str(directory.resolve())}, indent=2, ensure_ascii=False))
+            return 0
         if args.command == "batch":
             from .experiment_inputs import SEEDS
             from .experiment_report import write_reports
@@ -102,7 +118,7 @@ def main(argv=None):
             last_tick = summary["simulation_steps"]
             trace = read_csv(directory / "trajectory.csv")
             result = audit_trajectory(scenario, trace, last_tick)
-            if scenario.dispatch_policy in AUTO_POLICIES:
+            if scenario.dispatch_policy != "fixed":
                 try:
                     result.update(audit_dispatch(scenario, trace, read_csv(directory / "dispatch.csv"),
                                                  read_csv(directory / "tasks.csv"), last_tick))
@@ -128,7 +144,7 @@ def main(argv=None):
         if args.command == "compare":
             return _compare(scenario, args.output or ROOT / "outputs" / ("run_compare_" + timestamp))
         if args.policy:
-            scenario = replace(scenario, dispatch_policy=args.policy)
+            scenario = replace(scenario, dispatch_policy=args.policy, dispatch_order=())
         output = args.output or ROOT / "outputs" / ("run_" + timestamp)
         if output.exists():
             raise FileExistsError(f"Output directory already exists: {output}; choose a new path to retain previous data")

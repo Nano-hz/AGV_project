@@ -106,6 +106,48 @@ def csv_rows(rows):
     return [{key: "" if value is None else str(value) for key, value in row.items()} for row in rows]
 
 
+def verify_dispatch_run(directory, expected):
+    """核对一个调度轮次的共同输入、派单、轨迹与整轮指标。"""
+    instance = directory / "instance.json"
+    scenario = load_scenario(instance)
+    if scenario != expected:
+        raise ValueError(f"{directory}: the policy used different inputs")
+    if sha256(instance.read_bytes()).hexdigest() != read_json(directory / "metadata.json")["instance_sha256"]:
+        raise ValueError(f"{directory}: snapshot hash differs from metadata")
+    summary = read_json(directory / "summary.json")
+    end = summary["simulation_steps"]
+    trace = read_csv(directory / "trajectory.csv")
+    audit = audit_trajectory(scenario, trace, end)
+    decisions = read_csv(directory / "dispatch.csv")
+    ledger = read_csv(directory / "tasks.csv")
+    dispatch = audit_dispatch(scenario, trace, decisions, ledger, end)
+    events = read_csv(directory / "events.csv")
+    expected_events = {
+        "task_released": [(t.release_time, t.id, "") for t in scenario.tasks if t.release_time < end],
+        "task_assigned": [(int(r["time"]), r["task_id"], r["vehicle_id"]) for r in decisions],
+        "task_completed": [(int(r["completed_at"]), r["task_id"], r["vehicle_id"]) for r in ledger if r["completed_at"]],
+    }
+    for kind, expected_rows in expected_events.items():
+        actual = [(int(r["time"]), r["task_id"], r["vehicle_id"]) for r in events if r["event"] == kind]
+        if sorted(actual) != sorted(expected_rows):
+            raise ValueError(f"{directory}: {kind} events disagree with the input or trajectory")
+    for field in ("completed_tasks", "makespan", "mean_flow_time"):
+        if summary[field] != dispatch[f"recomputed_{field}"]:
+            raise ValueError(f"{directory}: {field} disagrees with the saved trajectory")
+    for field in ("vertex_conflicts", "edge_swap_conflicts", "conflict_count"):
+        if summary[field] != audit[field]:
+            raise ValueError(f"{directory}: {field} disagrees with the saved trajectory")
+    count = len(scenario.tasks)
+    complete = summary["completed_tasks"] == count
+    if (summary["success"] != (complete and audit["conflict_count"] == 0)
+            or end != (summary["makespan"] if complete else scenario.max_steps)
+            or summary["task_count"] != count or summary["vehicle_count"] != len(scenario.vehicles)
+            or summary["method"] != scenario.dispatch_policy
+            or summary["completion_rate"] != summary["completed_tasks"] / count):
+        raise ValueError(f"{directory}: summary counts or status do not match the run")
+    return summary
+
+
 def _verify_case(root, case, manifest):
     common = load_scenario(root / "instances" / f"{case.id}.json")
     if common != make_input(case, common.grid, manifest["max_steps"]):
@@ -116,28 +158,7 @@ def _verify_case(root, case, manifest):
     records = []
     for policy in AUTO_POLICIES:
         directory = root / "runs" / case.id / policy
-        instance = directory / "instance.json"
-        scenario = load_scenario(instance)
-        if scenario != replace(common, dispatch_policy=policy):
-            raise ValueError(f"{case.id}/{policy}: the policy used different inputs")
-        if sha256(instance.read_bytes()).hexdigest() != read_json(directory / "metadata.json")["instance_sha256"]:
-            raise ValueError(f"{case.id}/{policy}: snapshot hash differs from metadata")
-        summary = read_json(directory / "summary.json")
-        trace = read_csv(directory / "trajectory.csv")
-        audit = audit_trajectory(scenario, trace, summary["simulation_steps"])
-        dispatch = audit_dispatch(scenario, trace, read_csv(directory / "dispatch.csv"),
-                                  read_csv(directory / "tasks.csv"), summary["simulation_steps"])
-        for field in ("completed_tasks", "makespan", "mean_flow_time"):
-            if summary[field] != dispatch[f"recomputed_{field}"]:
-                raise ValueError(f"{case.id}/{policy}: {field} disagrees with the saved trajectory")
-        for field in ("vertex_conflicts", "edge_swap_conflicts", "conflict_count"):
-            if summary[field] != audit[field]:
-                raise ValueError(f"{case.id}/{policy}: {field} disagrees with the saved trajectory")
-        expected_success = summary["completed_tasks"] == case.task_count and audit["conflict_count"] == 0
-        if (summary["success"] != expected_success or summary["task_count"] != case.task_count
-                or summary["vehicle_count"] != case.vehicle_count or summary["method"] != policy
-                or summary["completion_rate"] != summary["completed_tasks"] / case.task_count):
-            raise ValueError(f"{case.id}/{policy}: summary counts or status do not match the run")
+        summary = verify_dispatch_run(directory, replace(common, dispatch_policy=policy))
         records.append(_record(case, summary, read_csv(directory / "events.csv"), common.max_steps))
     return records
 

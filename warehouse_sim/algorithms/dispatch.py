@@ -1,7 +1,7 @@
 """用 B0、B1 或 P 选择待办任务和空闲车辆。
 
 B0 优先队首任务，B1 比较各组合的静态预计完工时刻，P 根据预约试算可行路线。
-模块返回派单选择和评分，由仿真层更新任务队列并提交路线。
+E5 还可以回放指定的车与任务序列。模块返回派单选择和评分，由仿真层更新队列并提交路线。
 """
 
 from collections.abc import Iterable, Mapping
@@ -75,6 +75,7 @@ class Dispatcher:
     def __init__(self, scenario: Scenario):
         self.scenario = scenario
         self.completion = CompletionScorer(scenario) if scenario.dispatch_policy in ("B1", "P") else None
+        self.order_index = 0
 
     def choose(
         self,
@@ -84,6 +85,18 @@ class Dispatcher:
         reservations: ReservationTable,
     ) -> DispatchChoice | None:
         """从非空队列和空闲车集合选出一组，P 无可行组合时返回 None。"""
+        if self.scenario.dispatch_policy == "ordered":
+            # E5 按指定顺序提交可行路线。轮到的车忙、任务未发布或路线受阻时，留到下一步重试。
+            task_id, vehicle_id = self.scenario.dispatch_order[self.order_index]
+            task = next((item for item in pending if item.id == task_id), None)
+            if task is None or vehicle_id not in positions:
+                return None
+            steps, _ = plan_task(self.scenario, task, positions[vehicle_id], tick, reservations.others(vehicle_id))
+            if steps is None:
+                return None
+            self.order_index += 1
+            distances = distances_to(self.scenario.grid, task.pickup)
+            return DispatchChoice(task, vehicle_id, {v: distances[p] for v, p in positions.items()}, steps=steps)
         if self.completion is None:
             # 仿真层已按发布时间和任务编号排列队列，B0 只给队首任务选车。
             task = next(iter(pending))

@@ -108,6 +108,7 @@ class Scenario:
     dropoff_steps: int = 1
     max_steps: int = 1000
     dispatch_policy: str = "fixed"
+    dispatch_order: tuple[tuple[str, str], ...] = ()
 
     def validate(self):
         self.grid.validate()
@@ -117,9 +118,9 @@ class Scenario:
         integer(self.pickup_steps, "pickup_steps", 1)
         integer(self.dropoff_steps, "dropoff_steps", 1)
         integer(self.max_steps, "max_steps", 1)
-        if self.dispatch_policy not in ("fixed", *AUTO_POLICIES):
-            raise ValueError("dispatch_policy must be fixed, B0, B1, or P")
-        if self.dispatch_policy in AUTO_POLICIES:
+        if self.dispatch_policy not in ("fixed", "ordered", *AUTO_POLICIES):
+            raise ValueError("Unknown dispatch policy")
+        if self.dispatch_policy != "fixed":
             if len(self.vehicles) not in (2, 4) or not self.tasks:
                 raise ValueError("Automatic dispatch requires two or four vehicles and at least one task")
             if any(task.vehicle_id is not None for task in self.tasks):
@@ -130,6 +131,13 @@ class Scenario:
             if not isinstance(entity.id, str) or not entity.id:
                 raise ValueError("Vehicle/task IDs must be non-empty strings")
         vehicle_ids = {vehicle.id for vehicle in self.vehicles}
+        if self.dispatch_policy == "ordered":
+            if (len(self.dispatch_order) != len(self.tasks)
+                    or {task for task, _ in self.dispatch_order} != {task.id for task in self.tasks}
+                    or any(vehicle not in vehicle_ids for _, vehicle in self.dispatch_order)):
+                raise ValueError("An ordered reference must identify every task once and use known vehicles")
+        elif self.dispatch_order:
+            raise ValueError("Only an ordered reference can specify dispatch_order")
         if len(vehicle_ids) != len(self.vehicles) or len({task.id for task in self.tasks}) != len(self.tasks):
             raise ValueError("Vehicle IDs and task IDs must be unique within their respective lists")
         for vehicle in self.vehicles:
@@ -158,6 +166,7 @@ class Scenario:
         return {
             "schema_version": 1, "name": self.name, "seed": self.seed,
             **({"dispatch_policy": self.dispatch_policy} if self.dispatch_policy != "fixed" else {}),
+            **({"dispatch_order": [list(pair) for pair in self.dispatch_order]} if self.dispatch_order else {}),
             "map": self.grid.as_dict(),
             "parameters": {"pickup_steps": self.pickup_steps, "dropoff_steps": self.dropoff_steps, "max_steps": self.max_steps},
             "vehicles": [{"id": v.id, "start": list(v.start)} for v in self.vehicles],
@@ -179,6 +188,7 @@ class Scenario:
         result = cls(
             name=data["name"], grid=GridMap.from_dict(map_data),
             dispatch_policy=data.get("dispatch_policy", "fixed"),
+            dispatch_order=tuple(tuple(pair) for pair in data.get("dispatch_order", ())),
             vehicles=tuple(VehicleSpec(v["id"], cell(v["start"], "start")) for v in data["vehicles"]),
             tasks=tuple(TaskSpec(t["id"], integer(t["release_time"], "release_time"), cell(t["pickup"], "pickup"), cell(t["delivery"], "delivery"), t.get("vehicle_id")) for t in data["tasks"]),
             seed=data.get("seed", 0), pickup_steps=params.get("pickup_steps", 1),
